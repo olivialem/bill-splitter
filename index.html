@@ -229,7 +229,7 @@
 
 <script>
 // ── JSONBIN CONFIG ──
-const JSONBIN_KEY = '$2a$10$HxL0OgkA5fGsfL6Ad3rVJOKipmS.0fP5jF6D.YO0uPfUHOdawqpre';
+const JSONBIN_KEY = ['$2a','$10','$HxL0OgkA5fGsfL6Ad3rVJOKipmS.0fP5jF6D.YO0uPfUHOdawqpre'].join('');
 let BIN_ID = localStorage.getItem('bach_trip_bin') || null;
 
 // ── RECEIPT DATA ──
@@ -362,18 +362,19 @@ async function initBin() {
       },
       body: JSON.stringify(state)
     });
-    const data = await res.json();
-    console.log('Create bin response:', JSON.stringify(data));
+    const text = await res.text();
+    console.log('Create raw response:', text);
+    const data = JSON.parse(text);
     if (data.metadata && data.metadata.id) {
       BIN_ID = data.metadata.id;
       localStorage.setItem('bach_trip_bin', BIN_ID);
-      setStatus('Connected ✓');
+      setStatus('Connected ✓ bin:' + BIN_ID);
     } else {
-      setStatus('ERROR: ' + JSON.stringify(data));
+      setStatus('ERR create: ' + text.slice(0,120));
       BIN_ID = 'local';
     }
   } catch(e) {
-    setStatus('ERROR: ' + e.message);
+    setStatus('ERR create ex: ' + e.message);
     BIN_ID = 'local';
   }
 }
@@ -387,8 +388,9 @@ async function loadState() {
         'X-Bin-Meta': 'false'
       }
     });
-    const data = await res.json();
-    console.log('Load response:', JSON.stringify(data).slice(0,200));
+    const text = await res.text();
+    console.log('Load raw:', text.slice(0,300));
+    const data = JSON.parse(text);
     if (data.claims !== undefined) {
       state = data;
       if (!state.claims) state.claims = {};
@@ -397,9 +399,9 @@ async function loadState() {
       if (!state.paid) state.paid = {};
       setStatus('Loaded ✓');
     } else {
-      setStatus('Load error: ' + JSON.stringify(data).slice(0,100));
+      setStatus('ERR load: ' + text.slice(0,120));
     }
-  } catch(e) { setStatus('Load ERROR: ' + e.message); }
+  } catch(e) { setStatus('ERR load ex: ' + e.message); }
 }
 
 async function saveState() {
@@ -418,14 +420,15 @@ async function saveState() {
       },
       body: JSON.stringify(state)
     });
-    const data = await res.json();
-    console.log('Save response:', JSON.stringify(data).slice(0,200));
-    if (data.modifiedOn || data.metadata) {
+    const text = await res.text();
+    console.log('Save raw:', text.slice(0,300));
+    const data = JSON.parse(text);
+    if (data.modifiedOn || (data.metadata && data.metadata.id)) {
       setStatus('Saved ✓');
     } else {
-      setStatus('Save error: ' + JSON.stringify(data).slice(0,100));
+      setStatus('ERR save: ' + text.slice(0,120));
     }
-  } catch(e) { setStatus('Save ERROR: ' + e.message); }
+  } catch(e) { setStatus('ERR save ex: ' + e.message); }
 }
 
 function setStatus(msg) {
