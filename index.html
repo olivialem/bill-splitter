@@ -228,10 +228,8 @@
 
 <script>
 // ── JSONBIN CONFIG ──
-// This bin is created fresh for this trip. All state lives here.
-const BIN_URL = 'https://api.jsonbin.io/v3/bins';
-let BIN_ID = localStorage.getItem('bach_bin_id') || null;
-const JSONBIN_KEY = '$2a$10$placeholder'; // will auto-create bin on first load
+const JSONBIN_KEY = '$2a$10$HxL0OgkA5fGsfL6Ad3rVJOKipmS.0fP5jF6D.YO0uPfUHOdawqpre';
+let BIN_ID = localStorage.getItem('bach_trip_bin') || null;
 
 // ── RECEIPT DATA ──
 const EC_TAX = 54.06 / 926.70;
@@ -350,12 +348,16 @@ let pollTimer = null;
 // ── JSONBIN ──
 async function initBin() {
   const savedId = localStorage.getItem('bach_trip_bin');
-  if (savedId) { BIN_ID = savedId; return await loadState(); }
-  // Create new bin
+  if (savedId) { BIN_ID = savedId; await loadState(); return; }
   try {
     const res = await fetch('https://api.jsonbin.io/v3/bins', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Bin-Private': 'false', 'X-Bin-Name': 'bach-trip-split' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Private': 'false',
+        'X-Bin-Name': 'alexs-bach'
+      },
       body: JSON.stringify(state)
     });
     const data = await res.json();
@@ -363,16 +365,18 @@ async function initBin() {
     localStorage.setItem('bach_trip_bin', BIN_ID);
   } catch(e) {
     console.error('Bin create failed', e);
-    // Fall back to localStorage only
     BIN_ID = 'local';
   }
 }
 
 async function loadState() {
-  if (BIN_ID === 'local') { return; }
+  if (BIN_ID === 'local' || !BIN_ID) return;
   try {
     const res = await fetch(`https://api.jsonbin.io/v3/bins/${BIN_ID}/latest`, {
-      headers: { 'X-Bin-Meta': 'false' }
+      headers: {
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Meta': 'false'
+      }
     });
     const data = await res.json();
     state = data;
@@ -391,7 +395,11 @@ async function saveState() {
   try {
     await fetch(`https://api.jsonbin.io/v3/bins/${BIN_ID}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Bin-Meta': 'false' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_KEY,
+        'X-Bin-Meta': 'false'
+      },
       body: JSON.stringify(state)
     });
   } catch(e) { console.error('Save failed', e); }
