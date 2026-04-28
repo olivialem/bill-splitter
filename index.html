@@ -342,45 +342,19 @@ let myName = '';
 let state = { claims:{}, pitchers:{ sp_bm:[], sp_mlp:[] }, oysters:{}, paid:{} };
 let pollTimer = null;
 
-// ── NPOINT CONFIG ──
-let BIN_ID = localStorage.getItem('bach_npoint_id') || null;
+// ── FIREBASE CONFIG ──
+const FB = 'https://alexs-bach-default-rtdb.firebaseio.com/tripstate.json';
 
-// ── NPOINT ──
 async function initBin() {
-  const savedId = localStorage.getItem('bach_npoint_id');
-  if (savedId) { BIN_ID = savedId; await loadState(); return; }
-  setStatus('Creating shared database...');
-  try {
-    const res = await fetch('https://api.npoint.io/bins', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state)
-    });
-    const text = await res.text();
-    console.log('Create:', text.slice(0, 300));
-    const data = JSON.parse(text);
-    if (data.id) {
-      BIN_ID = data.id;
-      localStorage.setItem('bach_npoint_id', BIN_ID);
-      setStatus('Connected ✓');
-    } else {
-      setStatus('ERR: ' + text.slice(0, 120));
-      BIN_ID = 'local';
-    }
-  } catch(e) {
-    setStatus('ERR init: ' + e.message);
-    BIN_ID = 'local';
-  }
+  setStatus('Loading...');
+  await loadState();
 }
 
 async function loadState() {
-  if (BIN_ID === 'local' || !BIN_ID) return;
   try {
-    const res = await fetch(`https://api.npoint.io/${BIN_ID}`);
-    const text = await res.text();
-    console.log('Load:', text.slice(0, 300));
-    const data = JSON.parse(text);
-    if (data && typeof data === 'object') {
+    const res = await fetch(FB);
+    const data = await res.json();
+    if (data && typeof data === 'object' && data.claims !== undefined) {
       state = data;
       if (!state.claims) state.claims = {};
       if (!state.pitchers) state.pitchers = { sp_bm:[], sp_mlp:[] };
@@ -388,20 +362,18 @@ async function loadState() {
       if (!state.paid) state.paid = {};
       setStatus('Loaded ✓');
     } else {
-      setStatus('ERR load: ' + text.slice(0, 120));
+      // First time — initialize
+      await saveState();
+      setStatus('Connected ✓');
     }
   } catch(e) { setStatus('ERR load: ' + e.message); }
 }
 
 async function saveState() {
-  if (BIN_ID === 'local' || !BIN_ID) {
-    localStorage.setItem('bach_state_local', JSON.stringify(state));
-    return;
-  }
   setStatus('Saving...');
   try {
-    const res = await fetch(`https://api.npoint.io/${BIN_ID}`, {
-      method: 'POST',
+    const res = await fetch(FB, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state)
     });
