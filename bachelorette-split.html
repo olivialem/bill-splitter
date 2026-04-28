@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Alex's Bach 🌴</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --teal: #1D9E75;
+    --teal-light: #E1F5EE;
+    --teal-dark: #0F6E56;
+    --text: #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --text-tertiary: #9b9b9b;
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.1);
+    --border-strong: rgba(0,0,0,0.18);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .screen { display: none; max-width: 480px; margin: 0 auto; padding: 24px 16px 48px; }
+  .screen.active { display: block; }
+
+  /* ── Name screen ── */
+  .hero { text-align: center; padding: 52px 0 36px; }
+  .hero-emoji { font-size: 40px; margin-bottom: 16px; }
+  .hero h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.4px; margin-bottom: 6px; }
+  .hero p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 12px; }
+  .card label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .card input { width: 100%; font-size: 17px; padding: 10px 0; border: none; background: transparent; color: var(--text); outline: none; border-bottom: 1.5px solid var(--border-strong); }
+  .card input:focus { border-bottom-color: var(--teal); }
+
+  .btn { width: 100%; padding: 14px; border: none; border-radius: var(--radius-sm); font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--text); color: white; }
+  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  /* ── Nav ── */
+  .nav { display: flex; gap: 6px; margin-bottom: 20px; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 4px; }
+  .nav-btn { flex: 1; text-align: center; padding: 9px 4px; font-size: 13px; font-weight: 500; border-radius: 6px; cursor: pointer; color: var(--text-secondary); border: none; background: transparent; }
+  .nav-btn.active { background: var(--text); color: white; }
+
+  /* ── Tab bar ── */
+  .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .tab { flex: 1; text-align: center; padding: 10px 8px; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text-tertiary); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+  /* ── Status ── */
+  .status { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; margin-bottom: 12px; }
+  .status-name { font-size: 15px; font-weight: 500; }
+  .status-count { font-size: 13px; color: var(--text-secondary); }
+
+  /* ── Section header ── */
+  .section-header { display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0 8px; }
+  .section-header h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); }
+  .section-header span { font-size: 11px; color: var(--text-tertiary); }
+
+  /* ── Item card ── */
+  .item { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 5px; cursor: pointer; transition: border-color 0.12s, background 0.12s; -webkit-tap-highlight-color: transparent; }
+  .item.mine { background: var(--teal-light); border-color: var(--teal); }
+  .item.theirs { opacity: 0.55; cursor: default; }
+
+  .check { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border-strong); flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background 0.12s, border-color 0.12s; }
+  .item.mine .check { background: var(--teal); border-color: var(--teal); }
+  .check-mark { display: none; width: 10px; height: 10px; }
+  .item.mine .check-mark { display: block; }
+  .check-mark::after { content: ''; display: block; width: 10px; height: 10px; background: white; border-radius: 50%; }
+
+  .item-body { flex: 1; min-width: 0; }
+  .item-name { font-size: 14px; color: var(--text); }
+  .item-sub { font-size: 12px; color: var(--teal-dark); margin-top: 2px; }
+  .item-price { font-size: 14px; font-weight: 500; color: var(--text); flex-shrink: 0; }
+
+  /* ── Split blocks ── */
+  .split-block { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 13px 14px; margin-bottom: 5px; }
+  .split-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 10px; }
+
+  .pitcher-row { display: flex; align-items: center; gap: 8px; }
+  .pitcher-label { flex: 1; font-size: 14px; }
+  .pitcher-total { font-size: 13px; color: var(--text-secondary); }
+  .btn-join { padding: 6px 14px; font-size: 13px; font-weight: 500; border: 1.5px solid var(--border-strong); border-radius: 20px; background: white; cursor: pointer; color: var(--text); -webkit-tap-highlight-color: transparent; }
+  .btn-join.joined { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
+  .pitcher-names { font-size: 12px; color: var(--text-tertiary); margin-top: 6px; }
+
+  .oyster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .oyster-slot { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 8px 6px; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .oyster-slot.mine { background: var(--teal-light); border-color: var(--teal); }
+  .oyster-slot.taken { opacity: 0.5; cursor: default; }
+  .oyster-num { font-size: 11px; color: var(--text-tertiary); display: block; margin-bottom: 2px; }
+  .oyster-who { font-size: 12px; font-weight: 500; color: var(--text); }
+  .oyster-slot.mine .oyster-who { color: var(--teal-dark); }
+
+  .shared-row { display: flex; justify-content: space-between; align-items: center; }
+  .shared-label { font-size: 14px; }
+  .shared-price { font-size: 14px; font-weight: 500; color: var(--text-secondary); }
+
+  /* ── Summary ── */
+  .summary-card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 12px; }
+  .summary-header { padding: 14px 16px; border-bottom: 0.5px solid var(--border); }
+  .summary-header h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); }
+  .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; border-bottom: 0.5px solid var(--border); font-size: 14px; }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row.grand { font-size: 16px; font-weight: 600; padding: 14px 16px; }
+  .summary-row .label { color: var(--text-secondary); }
+  .summary-row.grand .label { color: var(--text); }
+  .summary-row .value { font-weight: 500; }
+
+  .venmo-block { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 12px; }
+  .venmo-header { padding: 14px 16px; border-bottom: 0.5px solid var(--border); }
+  .venmo-header h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); }
+  .venmo-row { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 0.5px solid var(--border); }
+  .venmo-row:last-child { border-bottom: none; }
+  .venmo-info { flex: 1; }
+  .venmo-person { font-size: 14px; font-weight: 500; }
+  .venmo-handle { font-size: 12px; color: var(--text-tertiary); margin-top: 1px; }
+  .venmo-amount { font-size: 15px; font-weight: 600; }
+  .btn-paid { padding: 7px 14px; font-size: 12px; font-weight: 500; border: 1.5px solid var(--border-strong); border-radius: 20px; background: white; cursor: pointer; color: var(--text); white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+  .btn-paid.paid { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
+
+  .note { font-size: 12px; color: var(--text-tertiary); padding: 0 16px 14px; line-height: 1.5; }
+
+  /* ── Everyone ── */
+  .everyone-row { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 0.5px solid var(--border); }
+  .everyone-row:last-child { border-bottom: none; }
+  .everyone-info { flex: 1; }
+  .everyone-name { font-size: 14px; font-weight: 500; }
+  .everyone-detail { font-size: 12px; color: var(--text-tertiary); margin-top: 3px; }
+  .everyone-total { font-size: 15px; font-weight: 600; }
+  .paid-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 20px; margin-left: 4px; }
+  .paid-badge.yes { background: var(--teal-light); color: var(--teal-dark); }
+  .paid-badge.no { background: #fff3e0; color: #b45309; }
+
+  /* ── Loading ── */
+  .loader { text-align: center; padding: 60px 20px; }
+  .loader p { font-size: 14px; color: var(--text-secondary); margin-top: 12px; }
+  .spinner { width: 28px; height: 28px; border: 2.5px solid var(--border); border-top-color: var(--teal); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 40px 20px; font-size: 14px; color: var(--text-tertiary); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- NAME SCREEN -->
+<div id="screen-name" class="screen active">
+  <div class="hero">
+    <div class="hero-emoji">🌴</div>
+    <h1>Alex's Bach</h1>
+    <p>Claim your items from both dinners<br>and see exactly what you owe</p>
+  </div>
+  <div class="card">
+    <label>Your name</label>
+    <input type="text" id="name-input" placeholder="First name" autocomplete="given-name" autocorrect="off" />
+  </div>
+  <button class="btn btn-primary" id="start-btn" disabled onclick="startApp()">Let's go →</button>
+</div>
+
+<!-- LOADING SCREEN -->
+<div id="screen-loading" class="screen">
+  <div class="loader">
+    <div class="spinner"></div>
+    <p>Loading...</p>
+  </div>
+</div>
+
+<!-- MAIN SCREEN -->
+<div id="screen-main" class="screen">
+  <div class="status">
+    <span class="status-name" id="greeting"></span>
+    <span class="status-count" id="claimed-count"></span>
+  </div>
+
+  <nav class="nav">
+    <button class="nav-btn active" id="nav-claim" onclick="showView('claim')">Claim</button>
+    <button class="nav-btn" id="nav-summary" onclick="showView('summary')">My total</button>
+    <button class="nav-btn" id="nav-everyone" onclick="showView('everyone')">Everyone</button>
+  </nav>
+
+  <!-- CLAIM VIEW -->
+  <div id="view-claim">
+    <div class="tabs">
+      <div class="tab active" id="tab-ec" onclick="switchTab('ec')">El Camino</div>
+      <div class="tab" id="tab-sp" onclick="switchTab('sp')">Southport Raw Bar</div>
+    </div>
+    <div id="tab-content-ec" class="tab-content active"></div>
+    <div id="tab-content-sp" class="tab-content"></div>
+  </div>
+
+  <!-- SUMMARY VIEW -->
+  <div id="view-summary" style="display:none">
+    <div class="summary-card">
+      <div class="summary-header"><h3>Breakdown</h3></div>
+      <div id="summary-breakdown"></div>
+    </div>
+    <div class="venmo-block">
+      <div class="venmo-header"><h3>Send payment to</h3></div>
+      <div id="venmo-rows"></div>
+      <p class="note">Tap "Mark paid" once you've sent the Venmo so Olivia & Alex can track it.</p>
+    </div>
+  </div>
+
+  <!-- EVERYONE VIEW -->
+  <div id="view-everyone" style="display:none">
+    <div class="summary-card">
+      <div class="summary-header"><h3>Payment tracker</h3></div>
+      <div id="everyone-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── JSONBIN CONFIG ──
+// This bin is created fresh for this trip. All state lives here.
+const BIN_URL = 'https://api.jsonbin.io/v3/bins';
+let BIN_ID = localStorage.getItem('bach_bin_id') || null;
+const JSONBIN_KEY = '$2a$10$placeholder'; // will auto-create bin on first load
+
+// ── RECEIPT DATA ──
+const EC_TAX = 54.06 / 926.70;
+const EC_SVC = 0.20;
+const SP_TAX = 46.75 / 667.85;
+const SP_TIP = 0.20;
+const LIVE_MUSIC_BASE = 20.75; // jameson + hop gun, split by 17
+const EC_SHARED_SPLIT = 17; // fundido + guac split by whole group
+
+function ecFinal(base) { return base * (1 + EC_SVC) * (1 + EC_TAX); }
+function spFinal(base) { return base * (1 + SP_TAX) * (1 + SP_TIP); }
+
+// El Camino shared items — split evenly by all 17 people, not claimable
+const EC_SHARED = [
+  { id:'ec_fund_shared', name:'Fundido (shared, 3 orders)', totalBase: 39.00 },
+  { id:'ec_guac_shared', name:'Guacamole (shared, 3 orders)', totalBase: 42.00 },
+];
+function ecSharedPerPerson() {
+  const totalBase = EC_SHARED.reduce((s, i) => s + i.totalBase, 0);
+  return ecFinal(totalBase) / EC_SHARED_SPLIT;
+}
+
+// El Camino items — expanded into individual units
+const EC_ITEMS = [];
+[
+  {id:'ec_straw', name:'Strawberry Margarita', price:14.00, qty:3},
+  {id:'ec_classic1', name:'Classic Margarita', price:12.00, qty:3},
+  {id:'ec_pine', name:'Pineapple Coconut Margarita', price:14.00, qty:4},
+  {id:'ec_dc', name:'Diet Coke', price:5.00, qty:1},
+  {id:'ec_spicy', name:'Spicy Avocado Margarita', price:14.00, qty:3},
+  {id:'ec_hib', name:'Hibiscus Guava Margarita', price:14.00, qty:1},
+  {id:'ec_mango', name:'Mango Chipotle Margarita', price:14.00, qty:1},
+  {id:'ec_classic2', name:'Classic Margarita', price:12.00, qty:1},
+  {id:'ec_5050', name:'50/50 Margarita', price:14.00, qty:2},
+  {id:'ec_wj1', name:'Watermelon Jalapeno Margarita', price:14.00, qty:2},
+  {id:'ec_cuke', name:'Cucumber Margarita', price:14.00, qty:2},
+  {id:'ec_wj2', name:'Watermelon Jalapeno Margarita', price:14.00, qty:2},
+  {id:'ec_straw2', name:'Strawberry Margarita', price:14.00, qty:1},
+  {id:'ec_ctaco', name:'Carnitas Taco', price:16.00, qty:1},
+  {id:'ec_cench', name:'Carnitas Enchilada', price:16.00, qty:1},
+  {id:'ec_bench', name:'Barbacoa Enchilada', price:18.00, qty:1},
+  {id:'ec_steak', name:'Steak Taco', price:18.00, qty:1},
+  {id:'ec_brisk', name:'Brisket Quesadilla', price:18.00, qty:1},
+  {id:'ec_bbur', name:'Barbacoa Burrito', price:20.00, qty:1},
+  {id:'ec_cfaj', name:'Chicken Fajita', price:21.00, qty:1},
+  {id:'ec_combo1', name:'Combo Tacos', price:20.00, qty:1},
+  {id:'ec_cench2', name:'Chicken Enchilada', price:16.00, qty:1},
+  {id:'ec_cques', name:'Chicken Quesadilla', price:16.00, qty:2},
+  {id:'ec_combo2', name:'Combo Tacos', price:20.00, qty:1},
+  {id:'ec_cques2', name:'Chicken Quesadilla', price:16.00, qty:1},
+  {id:'ec_chorq', name:'Chorizo Quesadilla', price:15.00, qty:1},
+  {id:'ec_combo3', name:'Combo Tacos', price:20.00, qty:1},
+  {id:'ec_avsal', name:'Avocado Salad + Steak', price:24.00, qty:1},
+  {id:'ec_rice', name:'Side Rice', price:5.00, qty:1},
+  {id:'ec_pork', name:'Pork Belly', price:16.00, qty:1},
+  {id:'ec_coke', name:'Coke', price:5.00, qty:1},
+  {id:'ec_classic3', name:'Classic Margarita', price:12.00, qty:2},
+].forEach(r => {
+  for (let i = 0; i < r.qty; i++) {
+    EC_ITEMS.push({ id: r.qty > 1 ? r.id+'_'+i : r.id, name: r.name, price: r.price });
+  }
+});
+
+// Southport items — expanded
+const SP_ITEMS = [];
+const SP_SPECIALS = {}; // pitcher/oyster items handled separately
+[
+  {id:'sp_bm', name:'Blue Moon Pitcher', price:19.00, qty:1, pitcher:true},
+  {id:'sp_gv', name:'Gulfstream Vodka', price:10.50, qty:1},
+  {id:'sp_pc', name:'Frozen Pina Colada', price:9.50, qty:6},
+  {id:'sp_pro', name:'Split Maschio Prosecco', price:9.25, qty:2},
+  {id:'sp_em', name:'Espresso Martini', price:12.50, qty:2},
+  {id:'sp_rr', name:'Rum Runner', price:9.50, qty:1},
+  {id:'sp_bm2', name:'Bloody Mary', price:12.50, qty:1},
+  {id:'sp_mlp', name:'Miller Lite Pitcher', price:13.95, qty:1, pitcher:true},
+  {id:'sp_sauv', name:'GL Sauvignon Blanc', price:8.25, qty:2},
+  {id:'sp_tea', name:'Iced Tea', price:4.50, qty:1},
+  {id:'sp_dq', name:'Frozen Strawberry Daiquiri', price:9.50, qty:1},
+  {id:'sp_vm', name:'Vodka Martini', price:13.50, qty:1},
+  {id:'sp_oy', name:'Blue Point Oysters', price:5.00, qty:12, oysters:true},
+  {id:'sp_os', name:'Oyster Shooter', price:6.25, qty:4},
+  {id:'sp_cf', name:'Conch Fritters', price:11.25, qty:1},
+  {id:'sp_cs', name:'Small Caesar Salad', price:8.50, qty:2},
+  {id:'sp_ss', name:'Small Salad', price:7.75, qty:1},
+  {id:'sp_fc', name:'Fried Clams Basket', price:9.00, qty:1},
+  {id:'sp_cw', name:'Chicken Wings', price:15.50, qty:1},
+  {id:'sp_go', name:'Half Dozen Grilled Oysters', price:16.00, qty:1},
+  {id:'sp_veg', name:'Vegetable', price:4.50, qty:1},
+  {id:'sp_ling', name:'Linguini w/ Clam', price:22.00, qty:2},
+  {id:'sp_mahi', name:'Mahi Tacos', price:13.50, qty:2},
+  {id:'sp_fchk', name:'Fried Chicken', price:11.50, qty:2},
+  {id:'sp_cshrimp', name:'Coconut Shrimp', price:14.95, qty:3},
+  {id:'sp_muss', name:'Mussels Garlic Wine Sauce', price:22.75, qty:1},
+  {id:'sp_burg', name:'Rodeo Burger', price:13.25, qty:1},
+  {id:'sp_fries', name:'Fries', price:4.95, qty:1},
+  {id:'sp_mahif', name:'Mahi with Fries', price:23.00, qty:1},
+  {id:'sp_or', name:'Onion Rings', price:6.95, qty:2},
+  {id:'sp_fsb', name:'Fried Shrimp Basket', price:12.00, qty:1},
+  {id:'sp_corn', name:'Corn on the Cob', price:3.95, qty:1},
+  {id:'sp_bac', name:'Bacardi', price:10.50, qty:2},
+  {id:'sp_moj', name:'Mojito', price:2.00, qty:2},
+  {id:'sp_pg', name:'GL Pinot Grigio', price:8.25, qty:1},
+  {id:'sp_ml', name:'Miller Lite Draft', price:5.25, qty:1},
+].forEach(r => {
+  if (r.pitcher || r.oysters) { SP_SPECIALS[r.id] = r; return; }
+  for (let i = 0; i < r.qty; i++) {
+    SP_ITEMS.push({ id: r.qty > 1 ? r.id+'_'+i : r.id, name: r.name, price: r.price });
+  }
+});
+
+// ── STATE ──
+let myName = '';
+let state = { claims:{}, pitchers:{ sp_bm:[], sp_mlp:[] }, oysters:{}, paid:{} };
+let pollTimer = null;
+
+// ── JSONBIN ──
+async function initBin() {
+  const savedId = localStorage.getItem('bach_trip_bin');
+  if (savedId) { BIN_ID = savedId; return await loadState(); }
+  // Create new bin
+  try {
+    const res = await fetch('https://api.jsonbin.io/v3/bins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Bin-Private': 'false', 'X-Bin-Name': 'bach-trip-split' },
+      body: JSON.stringify(state)
+    });
+    const data = await res.json();
+    BIN_ID = data.metadata.id;
+    localStorage.setItem('bach_trip_bin', BIN_ID);
+  } catch(e) {
+    console.error('Bin create failed', e);
+    // Fall back to localStorage only
+    BIN_ID = 'local';
+  }
+}
+
+async function loadState() {
+  if (BIN_ID === 'local') { return; }
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/bins/${BIN_ID}/latest`, {
+      headers: { 'X-Bin-Meta': 'false' }
+    });
+    const data = await res.json();
+    state = data;
+    if (!state.claims) state.claims = {};
+    if (!state.pitchers) state.pitchers = { sp_bm:[], sp_mlp:[] };
+    if (!state.oysters) state.oysters = {};
+    if (!state.paid) state.paid = {};
+  } catch(e) { console.error('Load failed', e); }
+}
+
+async function saveState() {
+  if (BIN_ID === 'local' || !BIN_ID) {
+    localStorage.setItem('bach_state_local', JSON.stringify(state));
+    return;
+  }
+  try {
+    await fetch(`https://api.jsonbin.io/v3/bins/${BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Bin-Meta': 'false' },
+      body: JSON.stringify(state)
+    });
+  } catch(e) { console.error('Save failed', e); }
+}
+
+// ── APP START ──
+document.getElementById('name-input').addEventListener('input', function() {
+  document.getElementById('start-btn').disabled = !this.value.trim();
+});
+document.getElementById('name-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && this.value.trim()) startApp();
+});
+
+async function startApp() {
+  const n = document.getElementById('name-input').value.trim();
+  if (!n) return;
+  myName = n;
+  localStorage.setItem('bach_myname', myName);
+  show('screen-loading');
+  await initBin();
+  show('screen-main');
+  renderAll();
+  document.getElementById('greeting').textContent = 'Hey ' + myName + ' 👋';
+  // Poll every 8s for updates
+  pollTimer = setInterval(async () => {
+    await loadState();
+    renderAll();
+  }, 8000);
+}
+
+// Auto-restore name
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('bach_myname');
+  if (saved) document.getElementById('name-input').value = saved;
+  document.getElementById('start-btn').disabled = !saved;
+});
+
+// ── VIEWS ──
+let currentView = 'claim';
+let currentTab = 'ec';
+
+function show(id) {
+  ['screen-name','screen-loading','screen-main'].forEach(s => {
+    document.getElementById(s).classList.toggle('active', s === id);
+  });
+}
+
+function showView(v) {
+  currentView = v;
+  document.getElementById('view-claim').style.display = v==='claim' ? 'block' : 'none';
+  document.getElementById('view-summary').style.display = v==='summary' ? 'block' : 'none';
+  document.getElementById('view-everyone').style.display = v==='everyone' ? 'block' : 'none';
+  ['claim','summary','everyone'].forEach(x => document.getElementById('nav-'+x).classList.toggle('active', x===v));
+  if (v==='summary') renderSummary();
+  if (v==='everyone') renderEveryone();
+}
+
+function switchTab(t) {
+  currentTab = t;
+  ['ec','sp'].forEach(x => {
+    document.getElementById('tab-'+x).classList.toggle('active', x===t);
+    document.getElementById('tab-content-'+x).classList.toggle('active', x===t);
+  });
+}
+
+// ── ACTIONS ──
+async function claimItem(id) {
+  if (state.claims[id] && state.claims[id] !== myName) return;
+  if (state.claims[id] === myName) delete state.claims[id];
+  else state.claims[id] = myName;
+  renderAll();
+  await saveState();
+}
+
+async function togglePitcher(id) {
+  if (!state.pitchers[id]) state.pitchers[id] = [];
+  const i = state.pitchers[id].indexOf(myName);
+  if (i >= 0) state.pitchers[id].splice(i, 1);
+  else state.pitchers[id].push(myName);
+  renderAll();
+  await saveState();
+}
+
+async function claimOyster(slot) {
+  if (state.oysters[slot] && state.oysters[slot] !== myName) return;
+  if (state.oysters[slot] === myName) delete state.oysters[slot];
+  else state.oysters[slot] = myName;
+  renderAll();
+  await saveState();
+}
+
+async function markPaid(restaurant) {
+  const key = myName + '_' + restaurant;
+  state.paid[key] = !state.paid[key];
+  renderAll();
+  await saveState();
+}
+
+// ── RENDER ──
+function renderAll() {
+  renderEC();
+  renderSP();
+  updateStatus();
+  if (currentView === 'summary') renderSummary();
+  if (currentView === 'everyone') renderEveryone();
+}
+
+function updateStatus() {
+  let n = 0;
+  EC_ITEMS.forEach(i => { if (state.claims[i.id] === myName) n++; });
+  SP_ITEMS.forEach(i => { if (state.claims[i.id] === myName) n++; });
+  Object.values(state.oysters||{}).forEach(w => { if (w === myName) n++; });
+  (state.pitchers||{}).sp_bm?.includes(myName) && n++;
+  (state.pitchers||{}).sp_mlp?.includes(myName) && n++;
+  document.getElementById('claimed-count').textContent = n + ' item' + (n===1?'':'s') + ' claimed';
+}
+
+function renderEC() {
+  const el = document.getElementById('tab-content-ec');
+  let h = '<div class="section-header"><h2>El Camino</h2><span>Paid by Olivia · svc + tax included</span></div>';
+  // Shared items split by all 17
+  const sharedEach = ecSharedPerPerson();
+  h += `<div class="split-block">
+    <div class="split-title">Shared by all 17 — $${sharedEach.toFixed(2)}/person</div>
+    <div class="shared-row"><span class="shared-label">Fundido (3 orders)</span><span class="shared-price">$${ecFinal(39.00).toFixed(2)} total</span></div>
+    <div class="shared-row" style="margin-top:6px"><span class="shared-label">Guacamole (3 orders)</span><span class="shared-price">$${ecFinal(42.00).toFixed(2)} total</span></div>
+  </div>`;
+  EC_ITEMS.forEach(item => {
+    const who = state.claims[item.id];
+    const mine = who === myName;
+    const theirs = who && !mine;
+    h += `<div class="item ${mine?'mine':''} ${theirs?'theirs':''}" onclick="${theirs?'':'"claimItem(\''+item.id+'\')'}">
+      <div class="check"><div class="check-mark"></div></div>
+      <div class="item-body">
+        <div class="item-name">${item.name}</div>
+        ${who ? `<div class="item-sub">${mine?'You':who}</div>` : ''}
+      </div>
+      <div class="item-price">$${ecFinal(item.price).toFixed(2)}</div>
+    </div>`;
+  });
+  el.innerHTML = h;
+  // Fix onclick after innerHTML (avoid XSS weirdness)
+  el.querySelectorAll('.item:not(.theirs)').forEach((div, idx) => {
+    div.onclick = () => claimItem(EC_ITEMS[idx].id);
+  });
+}
+
+function renderSP() {
+  const el = document.getElementById('tab-content-sp');
+  let h = '<div class="section-header"><h2>Southport Raw Bar</h2><span>Paid by Alex · tip + tax included</span></div>';
+
+  // Blue Moon Pitcher
+  h += pitcherHTML('sp_bm', 'Blue Moon Pitcher', SP_SPECIALS['sp_bm'].price);
+  // Miller Lite Pitcher
+  h += pitcherHTML('sp_mlp', 'Miller Lite Pitcher', SP_SPECIALS['sp_mlp'].price);
+  // Oysters
+  h += oysterHTML();
+  // Regular items
+  SP_ITEMS.forEach(item => {
+    const who = state.claims[item.id];
+    const mine = who === myName;
+    const theirs = who && !mine;
+    h += `<div class="item ${mine?'mine':''} ${theirs?'theirs':''}" data-id="${item.id}">
+      <div class="check"><div class="check-mark"></div></div>
+      <div class="item-body">
+        <div class="item-name">${item.name}</div>
+        ${who ? `<div class="item-sub">${mine?'You':who}</div>` : ''}
+      </div>
+      <div class="item-price">$${spFinal(item.price).toFixed(2)}</div>
+    </div>`;
+  });
+  // Live Music Drinks
+  const liveShare = getLiveMusicShare();
+  h += `<div class="split-block">
+    <div class="split-title">Live Music Drinks — split equally among everyone</div>
+    <div class="shared-row"><span class="shared-label">Jameson + Hop Gun</span><span class="shared-price">$${liveShare.toFixed(2)}/person</span></div>
+  </div>`;
+
+  el.innerHTML = h;
+
+  // Bind pitcher btns
+  el.querySelectorAll('.pitcher-join-btn').forEach(btn => {
+    btn.onclick = () => togglePitcher(btn.dataset.pitcher);
+  });
+  // Bind oyster slots
+  el.querySelectorAll('.oyster-slot').forEach(div => {
+    div.onclick = () => claimOyster(div.dataset.slot);
+  });
+  // Bind regular items
+  SP_ITEMS.forEach(item => {
+    const div = el.querySelector(`[data-id="${item.id}"]`);
+    if (div && !div.classList.contains('theirs')) div.onclick = () => claimItem(item.id);
+  });
+}
+
+function pitcherHTML(id, name, basePrice) {
+  const joiners = state.pitchers[id] || [];
+  const joined = joiners.includes(myName);
+  const total = spFinal(basePrice);
+  const share = joiners.length > 0 ? total / joiners.length : total;
+  return `<div class="split-block">
+    <div class="split-title">${name} — join to split</div>
+    <div class="pitcher-row">
+      <span class="pitcher-label">${joiners.length > 0 ? joiners.join(', ') : 'No one yet'}</span>
+      <span class="pitcher-total">${joiners.length > 1 ? '$'+share.toFixed(2)+'/ea' : '$'+total.toFixed(2)}</span>
+      <button class="btn-join ${joined?'joined':''} pitcher-join-btn" data-pitcher="${id}">${joined?'Leave':'Join'}</button>
+    </div>
+  </div>`;
+}
+
+function oysterHTML() {
+  let h = `<div class="split-block">
+    <div class="split-title">Dz Blue Point Oysters (12 total) — claim yours · $${spFinal(5).toFixed(2)}/oyster</div>
+    <div class="oyster-grid">`;
+  for (let i = 1; i <= 12; i++) {
+    const slot = 'oy'+i;
+    const who = state.oysters[slot];
+    const mine = who === myName;
+    const taken = who && !mine;
+    h += `<div class="oyster-slot ${mine?'mine':''} ${taken?'taken':''}" data-slot="${slot}">
+      <span class="oyster-num">Oyster ${i}</span>
+      <span class="oyster-who">${who || '—'}</span>
+    </div>`;
+  }
+  h += '</div></div>';
+  return h;
+}
+
+function getLiveMusicShare() {
+  return spFinal(LIVE_MUSIC_BASE) / 17;
+}
+
+function getMyTotals() {
+  let ec = 0, sp = 0;
+  ec += ecSharedPerPerson(); // fundido + guac split by 17
+  EC_ITEMS.forEach(i => { if (state.claims[i.id]===myName) ec += ecFinal(i.price); });
+  SP_ITEMS.forEach(i => { if (state.claims[i.id]===myName) sp += spFinal(i.price); });
+  ['sp_bm','sp_mlp'].forEach(pid => {
+    const j = state.pitchers[pid]||[];
+    if (j.includes(myName) && j.length>0) sp += spFinal(SP_SPECIALS[pid].price)/j.length;
+  });
+  Object.values(state.oysters||{}).forEach((who,_,arr) => { if(who===myName) sp+=spFinal(5); });
+  sp += getLiveMusicShare();
+  return { ec, sp };
+}
+
+function renderSummary() {
+  const {ec,sp} = getMyTotals();
+  const liveShare = getLiveMusicShare();
+  const spItems = sp - liveShare;
+  const sharedEC = ecSharedPerPerson();
+  document.getElementById('summary-breakdown').innerHTML = `
+    <div class="summary-row"><span class="label">Fundido + Guac (shared by 17)</span><span class="value">$${sharedEC.toFixed(2)}</span></div>
+    <div class="summary-row"><span class="label">Your El Camino items</span><span class="value">$${(ec - sharedEC).toFixed(2)}</span></div>
+    <div class="summary-row"><span class="label">El Camino total (to Olivia)</span><span class="value">$${ec.toFixed(2)}</span></div>
+    <div class="summary-row"><span class="label">Southport items (to Alex)</span><span class="value">$${spItems.toFixed(2)}</span></div>
+    <div class="summary-row"><span class="label">Live Music Drinks (to Alex)</span><span class="value">$${liveShare.toFixed(2)}</span></div>
+    <div class="summary-row grand"><span class="label">Total owed</span><span class="value">$${(ec+sp).toFixed(2)}</span></div>
+  `;
+  const paidEC = state.paid[myName+'_ec'];
+  const paidSP = state.paid[myName+'_sp'];
+  document.getElementById('venmo-rows').innerHTML = `
+    <div class="venmo-row">
+      <div class="venmo-info">
+        <div class="venmo-person">Olivia</div>
+        <div class="venmo-handle">@Olivia-LeMieux</div>
+      </div>
+      <span class="venmo-amount">$${ec.toFixed(2)}</span>
+      <button class="btn-paid ${paidEC?'paid':''}" onclick="markPaid('ec')">${paidEC?'Paid ✓':'Mark paid'}</button>
+    </div>
+    <div class="venmo-row">
+      <div class="venmo-info">
+        <div class="venmo-person">Alex</div>
+        <div class="venmo-handle">@alexlemieux98</div>
+      </div>
+      <span class="venmo-amount">$${sp.toFixed(2)}</span>
+      <button class="btn-paid ${paidSP?'paid':''}" onclick="markPaid('sp')">${paidSP?'Paid ✓':'Mark paid'}</button>
+    </div>
+  `;
+}
+
+function renderEveryone() {
+  const allNames = new Set();
+  Object.values(state.claims||{}).forEach(n => allNames.add(n));
+  Object.values(state.pitchers||{}).forEach(arr => arr.forEach(n => allNames.add(n)));
+  Object.values(state.oysters||{}).forEach(n => allNames.add(n));
+
+  if (allNames.size === 0) {
+    document.getElementById('everyone-list').innerHTML = '<div class="empty">No one has claimed anything yet</div>';
+    return;
+  }
+
+  const liveShare = getLiveMusicShare();
+  let h = '';
+  [...allNames].sort().forEach(name => {
+    let ec = 0, sp = 0;
+    ec += ecSharedPerPerson(); // fundido + guac shared by all 17
+    EC_ITEMS.forEach(i => { if (state.claims[i.id]===name) ec+=ecFinal(i.price); });
+    SP_ITEMS.forEach(i => { if (state.claims[i.id]===name) sp+=spFinal(i.price); });
+    ['sp_bm','sp_mlp'].forEach(pid => {
+      const j = state.pitchers[pid]||[];
+      if (j.includes(name)&&j.length>0) sp+=spFinal(SP_SPECIALS[pid].price)/j.length;
+    });
+    Object.values(state.oysters||{}).forEach(who => { if(who===name) sp+=spFinal(5); });
+    sp += liveShare;
+    const pEC = state.paid[name+'_ec'];
+    const pSP = state.paid[name+'_sp'];
+    h += `<div class="everyone-row">
+      <div class="everyone-info">
+        <div class="everyone-name">${name}</div>
+        <div class="everyone-detail">
+          EC <span class="paid-badge ${pEC?'yes':'no'}">${pEC?'paid':'unpaid'}</span>
+          SP <span class="paid-badge ${pSP?'yes':'no'}">${pSP?'paid':'unpaid'}</span>
+        </div>
+      </div>
+      <span class="everyone-total">$${(ec+sp).toFixed(2)}</span>
+    </div>`;
+  });
+  document.getElementById('everyone-list').innerHTML = h;
+}
+</script>
+</body>
+</html>
