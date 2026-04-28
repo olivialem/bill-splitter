@@ -187,6 +187,7 @@
     <span class="status-name" id="greeting"></span>
     <span class="status-count" id="claimed-count"></span>
   </div>
+  <div id="sync-status" style="font-size:11px;color:var(--text-tertiary);text-align:right;margin:-8px 0 10px;"></div>
 
   <nav class="nav">
     <button class="nav-btn active" id="nav-claim" onclick="showView('claim')">Claim</button>
@@ -349,6 +350,7 @@ let pollTimer = null;
 async function initBin() {
   const savedId = localStorage.getItem('bach_trip_bin');
   if (savedId) { BIN_ID = savedId; await loadState(); return; }
+  setStatus('Creating shared database...');
   try {
     const res = await fetch('https://api.jsonbin.io/v3/bins', {
       method: 'POST',
@@ -361,10 +363,17 @@ async function initBin() {
       body: JSON.stringify(state)
     });
     const data = await res.json();
-    BIN_ID = data.metadata.id;
-    localStorage.setItem('bach_trip_bin', BIN_ID);
+    console.log('Create bin response:', JSON.stringify(data));
+    if (data.metadata && data.metadata.id) {
+      BIN_ID = data.metadata.id;
+      localStorage.setItem('bach_trip_bin', BIN_ID);
+      setStatus('Connected ✓');
+    } else {
+      setStatus('ERROR: ' + JSON.stringify(data));
+      BIN_ID = 'local';
+    }
   } catch(e) {
-    console.error('Bin create failed', e);
+    setStatus('ERROR: ' + e.message);
     BIN_ID = 'local';
   }
 }
@@ -379,12 +388,18 @@ async function loadState() {
       }
     });
     const data = await res.json();
-    state = data;
-    if (!state.claims) state.claims = {};
-    if (!state.pitchers) state.pitchers = { sp_bm:[], sp_mlp:[] };
-    if (!state.oysters) state.oysters = {};
-    if (!state.paid) state.paid = {};
-  } catch(e) { console.error('Load failed', e); }
+    console.log('Load response:', JSON.stringify(data).slice(0,200));
+    if (data.claims !== undefined) {
+      state = data;
+      if (!state.claims) state.claims = {};
+      if (!state.pitchers) state.pitchers = { sp_bm:[], sp_mlp:[] };
+      if (!state.oysters) state.oysters = {};
+      if (!state.paid) state.paid = {};
+      setStatus('Loaded ✓');
+    } else {
+      setStatus('Load error: ' + JSON.stringify(data).slice(0,100));
+    }
+  } catch(e) { setStatus('Load ERROR: ' + e.message); }
 }
 
 async function saveState() {
@@ -392,8 +407,9 @@ async function saveState() {
     localStorage.setItem('bach_state_local', JSON.stringify(state));
     return;
   }
+  setStatus('Saving...');
   try {
-    await fetch(`https://api.jsonbin.io/v3/bins/${BIN_ID}`, {
+    const res = await fetch(`https://api.jsonbin.io/v3/bins/${BIN_ID}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -402,7 +418,20 @@ async function saveState() {
       },
       body: JSON.stringify(state)
     });
-  } catch(e) { console.error('Save failed', e); }
+    const data = await res.json();
+    console.log('Save response:', JSON.stringify(data).slice(0,200));
+    if (data.modifiedOn || data.metadata) {
+      setStatus('Saved ✓');
+    } else {
+      setStatus('Save error: ' + JSON.stringify(data).slice(0,100));
+    }
+  } catch(e) { setStatus('Save ERROR: ' + e.message); }
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('sync-status');
+  if (el) el.textContent = msg;
+  console.log('STATUS:', msg);
 }
 
 // ── APP START ──
