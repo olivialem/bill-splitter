@@ -228,10 +228,6 @@
 </div>
 
 <script>
-// ── JSONBIN CONFIG ──
-const JSONBIN_KEY = ['$2a','$10','$HxL0OgkA5fGsfL6Ad3rVJOKipmS.0fP5jF6D.YO0uPfUHOdawqpre'].join('');
-let BIN_ID = localStorage.getItem('bach_trip_bin') || null;
-
 // ── RECEIPT DATA ──
 const EC_TAX = 54.06 / 926.70;
 const EC_SVC = 0.20;
@@ -346,35 +342,33 @@ let myName = '';
 let state = { claims:{}, pitchers:{ sp_bm:[], sp_mlp:[] }, oysters:{}, paid:{} };
 let pollTimer = null;
 
-// ── JSONBIN ──
+// ── NPOINT CONFIG ──
+let BIN_ID = localStorage.getItem('bach_npoint_id') || null;
+
+// ── NPOINT ──
 async function initBin() {
-  const savedId = localStorage.getItem('bach_trip_bin');
+  const savedId = localStorage.getItem('bach_npoint_id');
   if (savedId) { BIN_ID = savedId; await loadState(); return; }
   setStatus('Creating shared database...');
   try {
-    const res = await fetch('https://api.jsonbin.io/v3/bins', {
+    const res = await fetch('https://api.npoint.io/bins', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Private': 'false',
-        'X-Bin-Name': 'alexs-bach'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state)
     });
     const text = await res.text();
-    console.log('Create raw response:', text);
+    console.log('Create:', text.slice(0, 300));
     const data = JSON.parse(text);
-    if (data.metadata && data.metadata.id) {
-      BIN_ID = data.metadata.id;
-      localStorage.setItem('bach_trip_bin', BIN_ID);
-      setStatus('Connected ✓ bin:' + BIN_ID);
+    if (data.id) {
+      BIN_ID = data.id;
+      localStorage.setItem('bach_npoint_id', BIN_ID);
+      setStatus('Connected ✓');
     } else {
-      setStatus('ERR create: ' + text.slice(0,120));
+      setStatus('ERR: ' + text.slice(0, 120));
       BIN_ID = 'local';
     }
   } catch(e) {
-    setStatus('ERR create ex: ' + e.message);
+    setStatus('ERR init: ' + e.message);
     BIN_ID = 'local';
   }
 }
@@ -382,16 +376,11 @@ async function initBin() {
 async function loadState() {
   if (BIN_ID === 'local' || !BIN_ID) return;
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/bins/${BIN_ID}/latest`, {
-      headers: {
-        'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Meta': 'false'
-      }
-    });
+    const res = await fetch(`https://api.npoint.io/${BIN_ID}`);
     const text = await res.text();
-    console.log('Load raw:', text.slice(0,300));
+    console.log('Load:', text.slice(0, 300));
     const data = JSON.parse(text);
-    if (data.claims !== undefined) {
+    if (data && typeof data === 'object') {
       state = data;
       if (!state.claims) state.claims = {};
       if (!state.pitchers) state.pitchers = { sp_bm:[], sp_mlp:[] };
@@ -399,9 +388,9 @@ async function loadState() {
       if (!state.paid) state.paid = {};
       setStatus('Loaded ✓');
     } else {
-      setStatus('ERR load: ' + text.slice(0,120));
+      setStatus('ERR load: ' + text.slice(0, 120));
     }
-  } catch(e) { setStatus('ERR load ex: ' + e.message); }
+  } catch(e) { setStatus('ERR load: ' + e.message); }
 }
 
 async function saveState() {
@@ -411,24 +400,18 @@ async function saveState() {
   }
   setStatus('Saving...');
   try {
-    const res = await fetch(`https://api.jsonbin.io/v3/bins/${BIN_ID}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Master-Key': JSONBIN_KEY,
-        'X-Bin-Meta': 'false'
-      },
+    const res = await fetch(`https://api.npoint.io/${BIN_ID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state)
     });
-    const text = await res.text();
-    console.log('Save raw:', text.slice(0,300));
-    const data = JSON.parse(text);
-    if (data.modifiedOn || (data.metadata && data.metadata.id)) {
+    if (res.ok) {
       setStatus('Saved ✓');
     } else {
-      setStatus('ERR save: ' + text.slice(0,120));
+      const text = await res.text();
+      setStatus('ERR save: ' + text.slice(0, 120));
     }
-  } catch(e) { setStatus('ERR save ex: ' + e.message); }
+  } catch(e) { setStatus('ERR save: ' + e.message); }
 }
 
 function setStatus(msg) {
