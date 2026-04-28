@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebaseio.com wss://*.firebaseio.com">
 <title>Alex's Bach 🌴</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -96,6 +97,11 @@
   .btn-join { padding: 6px 14px; font-size: 13px; font-weight: 500; border: 1.5px solid var(--border-strong); border-radius: 20px; background: white; cursor: pointer; color: var(--text); -webkit-tap-highlight-color: transparent; }
   .btn-join.joined { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); }
   .pitcher-names { font-size: 12px; color: var(--text-tertiary); margin-top: 6px; }
+
+  .fraction-btns { display: flex; align-items: center; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+  .frac-label { font-size: 11px; color: var(--text-tertiary); margin-right: 2px; }
+  .frac-btn { padding: 3px 9px; font-size: 12px; border: 1.5px solid var(--border-strong); border-radius: 20px; background: white; cursor: pointer; color: var(--text-secondary); }
+  .frac-btn.active { background: var(--teal-light); border-color: var(--teal); color: var(--teal-dark); font-weight: 600; }
 
   .oyster-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
   .oyster-slot { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 8px 6px; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -414,7 +420,7 @@ async function startApp() {
   pollTimer = setInterval(async () => {
     await loadState();
     renderAll();
-  }, 8000);
+  }, 3000);
 }
 
 // Auto-restore name
@@ -454,9 +460,17 @@ function switchTab(t) {
 
 // ── ACTIONS ──
 async function claimItem(id) {
-  if (state.claims[id] && state.claims[id] !== myName) return;
-  if (state.claims[id] === myName) delete state.claims[id];
-  else state.claims[id] = myName;
+  const claim = state.claims[id];
+  const claimer = claim ? claim.split(':')[0] : null;
+  if (claimer && claimer !== myName) return; // someone else's
+  if (claimer === myName) delete state.claims[id]; // unclaim
+  else state.claims[id] = myName; // claim at full price
+  renderAll();
+  await saveState();
+}
+
+async function setFraction(id, frac) {
+  state.claims[id] = frac === 1 ? myName : myName + ':' + frac;
   renderAll();
   await saveState();
 }
@@ -507,7 +521,6 @@ function updateStatus() {
 function renderEC() {
   const el = document.getElementById('tab-content-ec');
   let h = '<div class="section-header"><h2>El Camino</h2><span>Paid by Olivia · svc + tax included</span></div>';
-  // Shared items split by all 17
   const sharedEach = ecSharedPerPerson();
   h += `<div class="split-block">
     <div class="split-title">Shared by all 17 — $${sharedEach.toFixed(2)}/person</div>
@@ -515,70 +528,92 @@ function renderEC() {
     <div class="shared-row" style="margin-top:6px"><span class="shared-label">Guacamole (3 orders)</span><span class="shared-price">$${ecFinal(42.00).toFixed(2)} total</span></div>
   </div>`;
   EC_ITEMS.forEach(item => {
-    const who = state.claims[item.id];
-    const mine = who === myName;
-    const theirs = who && !mine;
-    h += `<div class="item ${mine?'mine':''} ${theirs?'theirs':''}" onclick="${theirs?'':'"claimItem(\''+item.id+'\')'}">
-      <div class="check"><div class="check-mark"></div></div>
-      <div class="item-body">
-        <div class="item-name">${item.name}</div>
-        ${who ? `<div class="item-sub">${mine?'You':who}</div>` : ''}
-      </div>
-      <div class="item-price">$${ecFinal(item.price).toFixed(2)}</div>
-    </div>`;
+    h += itemHTML(item, 'ec');
   });
   el.innerHTML = h;
-  // Fix onclick after innerHTML (avoid XSS weirdness)
-  el.querySelectorAll('.item:not(.theirs)').forEach((div, idx) => {
-    div.onclick = () => claimItem(EC_ITEMS[idx].id);
-  });
+  bindItems(el, EC_ITEMS, 'ec');
 }
 
 function renderSP() {
   const el = document.getElementById('tab-content-sp');
   let h = '<div class="section-header"><h2>Southport Raw Bar</h2><span>Paid by Alex · tip + tax included</span></div>';
-
-  // Blue Moon Pitcher
   h += pitcherHTML('sp_bm', 'Blue Moon Pitcher', SP_SPECIALS['sp_bm'].price);
-  // Miller Lite Pitcher
   h += pitcherHTML('sp_mlp', 'Miller Lite Pitcher', SP_SPECIALS['sp_mlp'].price);
-  // Oysters
   h += oysterHTML();
-  // Regular items
   SP_ITEMS.forEach(item => {
-    const who = state.claims[item.id];
-    const mine = who === myName;
-    const theirs = who && !mine;
-    h += `<div class="item ${mine?'mine':''} ${theirs?'theirs':''}" data-id="${item.id}">
-      <div class="check"><div class="check-mark"></div></div>
-      <div class="item-body">
-        <div class="item-name">${item.name}</div>
-        ${who ? `<div class="item-sub">${mine?'You':who}</div>` : ''}
-      </div>
-      <div class="item-price">$${spFinal(item.price).toFixed(2)}</div>
-    </div>`;
+    h += itemHTML(item, 'sp');
   });
-  // Live Music Drinks
   const liveShare = getLiveMusicShare();
   h += `<div class="split-block">
     <div class="split-title">Live Music Drinks — split equally among everyone</div>
     <div class="shared-row"><span class="shared-label">Jameson + Hop Gun</span><span class="shared-price">$${liveShare.toFixed(2)}/person</span></div>
   </div>`;
-
   el.innerHTML = h;
-
-  // Bind pitcher btns
   el.querySelectorAll('.pitcher-join-btn').forEach(btn => {
     btn.onclick = () => togglePitcher(btn.dataset.pitcher);
   });
-  // Bind oyster slots
   el.querySelectorAll('.oyster-slot').forEach(div => {
     div.onclick = () => claimOyster(div.dataset.slot);
   });
-  // Bind regular items
-  SP_ITEMS.forEach(item => {
-    const div = el.querySelector(`[data-id="${item.id}"]`);
-    if (div && !div.classList.contains('theirs')) div.onclick = () => claimItem(item.id);
+  bindItems(el, SP_ITEMS, 'sp');
+}
+
+function itemHTML(item, rest) {
+  const claim = state.claims[item.id]; // e.g. "Sarah" or "Sarah:0.5"
+  const claimer = claim ? claim.split(':')[0] : null;
+  const fraction = claim ? parseFloat(claim.split(':')[1] || '1') : 1;
+  const mine = claimer === myName;
+  const theirs = claimer && !mine;
+  const price = rest === 'ec' ? ecFinal(item.price) : spFinal(item.price);
+  const displayPrice = (price * fraction).toFixed(2);
+
+  let fractionBtns = '';
+  if (mine) {
+    fractionBtns = `<div class="fraction-btns" onclick="event.stopPropagation()">
+      <span class="frac-label">splitting?</span>
+      ${['1','1/2','1/3','1/4'].map(f => {
+        const val = f === '1' ? 1 : parseFloat(f.split('/')[1] === '2' ? 0.5 : f.split('/')[1] === '3' ? 0.333 : 0.25);
+        const active = Math.abs(fraction - val) < 0.01;
+        return `<button class="frac-btn ${active?'active':''}" data-id="${item.id}" data-frac="${val}">${f}</button>`;
+      }).join('')}
+    </div>`;
+  }
+
+  return `<div class="item ${mine?'mine':''} ${theirs?'theirs':''}" data-id="${item.id}">
+    <div class="check"><div class="check-mark"></div></div>
+    <div class="item-body">
+      <div class="item-name">${item.name}</div>
+      ${claimer ? `<div class="item-sub">${mine ? 'You' : claimer}${fraction < 1 ? ' · '+fracLabel(fraction) : ''}</div>` : ''}
+      ${fractionBtns}
+    </div>
+    <div class="item-price">$${displayPrice}</div>
+  </div>`;
+}
+
+function fracLabel(f) {
+  if (Math.abs(f - 0.5) < 0.01) return '½';
+  if (Math.abs(f - 0.333) < 0.01) return '⅓';
+  if (Math.abs(f - 0.25) < 0.01) return '¼';
+  return f;
+}
+
+function bindItems(el, items, rest) {
+  items.forEach(item => {
+    const div = el.querySelector(`.item[data-id="${item.id}"]`);
+    if (!div) return;
+    const claim = state.claims[item.id];
+    const claimer = claim ? claim.split(':')[0] : null;
+    const theirs = claimer && claimer !== myName;
+    if (!theirs) {
+      div.onclick = () => claimItem(item.id);
+    }
+    // Fraction buttons
+    div.querySelectorAll('.frac-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        setFraction(item.id, parseFloat(btn.dataset.frac));
+      };
+    });
   });
 }
 
@@ -619,16 +654,19 @@ function getLiveMusicShare() {
   return spFinal(LIVE_MUSIC_BASE) / 17;
 }
 
+function claimOwner(id) { const c = state.claims[id]; return c ? c.split(':')[0] : null; }
+function claimFrac(id) { const c = state.claims[id]; return c && c.includes(':') ? parseFloat(c.split(':')[1]) : 1; }
+
 function getMyTotals() {
   let ec = 0, sp = 0;
-  ec += ecSharedPerPerson(); // fundido + guac split by 17
-  EC_ITEMS.forEach(i => { if (state.claims[i.id]===myName) ec += ecFinal(i.price); });
-  SP_ITEMS.forEach(i => { if (state.claims[i.id]===myName) sp += spFinal(i.price); });
+  ec += ecSharedPerPerson();
+  EC_ITEMS.forEach(i => { if (claimOwner(i.id)===myName) ec += ecFinal(i.price) * claimFrac(i.id); });
+  SP_ITEMS.forEach(i => { if (claimOwner(i.id)===myName) sp += spFinal(i.price) * claimFrac(i.id); });
   ['sp_bm','sp_mlp'].forEach(pid => {
     const j = state.pitchers[pid]||[];
     if (j.includes(myName) && j.length>0) sp += spFinal(SP_SPECIALS[pid].price)/j.length;
   });
-  Object.values(state.oysters||{}).forEach((who,_,arr) => { if(who===myName) sp+=spFinal(5); });
+  Object.values(state.oysters||{}).forEach(who => { if(who===myName) sp+=spFinal(5); });
   sp += getLiveMusicShare();
   return { ec, sp };
 }
@@ -670,7 +708,7 @@ function renderSummary() {
 
 function renderEveryone() {
   const allNames = new Set();
-  Object.values(state.claims||{}).forEach(n => allNames.add(n));
+  Object.values(state.claims||{}).forEach(n => allNames.add(n.split(':')[0]));
   Object.values(state.pitchers||{}).forEach(arr => arr.forEach(n => allNames.add(n)));
   Object.values(state.oysters||{}).forEach(n => allNames.add(n));
 
@@ -683,9 +721,9 @@ function renderEveryone() {
   let h = '';
   [...allNames].sort().forEach(name => {
     let ec = 0, sp = 0;
-    ec += ecSharedPerPerson(); // fundido + guac shared by all 17
-    EC_ITEMS.forEach(i => { if (state.claims[i.id]===name) ec+=ecFinal(i.price); });
-    SP_ITEMS.forEach(i => { if (state.claims[i.id]===name) sp+=spFinal(i.price); });
+    ec += ecSharedPerPerson();
+    EC_ITEMS.forEach(i => { if (claimOwner(i.id)===name) ec += ecFinal(i.price) * claimFrac(i.id); });
+    SP_ITEMS.forEach(i => { if (claimOwner(i.id)===name) sp += spFinal(i.price) * claimFrac(i.id); });
     ['sp_bm','sp_mlp'].forEach(pid => {
       const j = state.pitchers[pid]||[];
       if (j.includes(name)&&j.length>0) sp+=spFinal(SP_SPECIALS[pid].price)/j.length;
